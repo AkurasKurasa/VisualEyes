@@ -1,6 +1,13 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from code_parser import CodeParser
+try:
+    from code_parser import CodeParser
+except ImportError as e:
+    print(f"Import Error: {e}")
+    # Fallback to prevent crash so /api/health still works
+    class CodeParser:
+        def parse(self, code):
+            return {"structures": [], "error": "Parser module failed to load"}
 
 app = Flask(__name__)
 CORS(app) # Enable CORS for frontend communication
