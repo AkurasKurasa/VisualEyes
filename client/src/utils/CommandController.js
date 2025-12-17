@@ -20,7 +20,9 @@ export class CommandController {
             });
 
             if (!response.ok) {
-                throw new Error('Network response was not ok');
+                const errorText = await response.text();
+                console.error(`[CommandController] Error ${response.status}: ${response.statusText}`, errorText);
+                throw new Error(`Network response was not ok: ${response.status} ${response.statusText} - ${errorText}`);
             }
 
             const data = await response.json();

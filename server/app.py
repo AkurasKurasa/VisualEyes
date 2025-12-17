@@ -7,6 +7,10 @@ CORS(app) # Enable CORS for frontend communication
 
 parser = CodeParser()
 
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "ok", "message": "Server is running"})
+
 @app.route('/api/parse', methods=['POST'])
 def parse_code():
     data = request.json
