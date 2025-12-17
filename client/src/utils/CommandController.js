@@ -27,6 +27,12 @@ export class CommandController {
 
             const data = await response.json();
 
+            if (data.error) {
+                console.error("[CommandController] Backend Error:", data.error);
+                // We can also throw if we want to stop execution
+                // throw new Error(data.error);
+            }
+
             // Ensure default structure if backend returns minimal data
             return {
                 structures: data.structures || [],
