@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from parser import CodeParser
+from code_parser import CodeParser
 
 app = Flask(__name__)
 CORS(app) # Enable CORS for frontend communication
