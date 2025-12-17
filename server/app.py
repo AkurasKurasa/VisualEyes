@@ -7,6 +7,9 @@ print("Current Directory:", os.getcwd())
 print("Files in Dir:", os.listdir(os.getcwd()))
 print("Sys Path:", sys.path)
 
+# Ensure the server directory is in python path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 try:
     from code_parser import CodeParser
 except ImportError as e:
