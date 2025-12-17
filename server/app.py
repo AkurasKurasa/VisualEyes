@@ -1,5 +1,12 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+import os
+import sys
+
+print("Current Directory:", os.getcwd())
+print("Files in Dir:", os.listdir(os.getcwd()))
+print("Sys Path:", sys.path)
+
 try:
     from code_parser import CodeParser
 except ImportError as e:
