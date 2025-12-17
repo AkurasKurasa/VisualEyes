@@ -15,8 +15,13 @@ def parse_code():
     if not code:
         return jsonify({"structures": [], "hasLoop": False})
 
-    result = parser.parse(code)
-    return jsonify(result)
+    try:
+        result = parser.parse(code)
+        return jsonify(result)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": str(e), "trace": traceback.format_exc()}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
