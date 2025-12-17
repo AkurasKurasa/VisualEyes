@@ -7,7 +7,11 @@ export class CommandController {
      */
     static async parse(code) {
         try {
-            const response = await fetch('/api/parse', {
+            // Debug: Log the exact URL being fetched
+            const url = '/api/parse';
+            console.log(`[CommandController] Fetching: ${new URL(url, window.location.origin).href}`);
+
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
