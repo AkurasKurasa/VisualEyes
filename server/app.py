@@ -7,7 +7,7 @@ CORS(app) # Enable CORS for frontend communication
 
 parser = CodeParser()
 
-@app.route('/parse', methods=['POST'])
+@app.route('/api/parse', methods=['POST'])
 def parse_code():
     data = request.json
     code = data.get('code', '')
