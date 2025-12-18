@@ -171,7 +171,7 @@ const DictionaryElement = ({ position, k, v, isHighlighted }) => {
     );
 };
 
-const DraggableStructure = ({ structure, highlightIndex, initialY, overrideValue }) => {
+const DraggableStructure = ({ structure, highlightIndex, initialY, overrideValue, indexHighlights = [] }) => {
     const { name, data, type } = structure; // type is 'array' or 'set' or 'variable' or 'dictionary'
     const { viewport } = useThree();
 
@@ -280,6 +280,10 @@ const DraggableStructure = ({ structure, highlightIndex, initialY, overrideValue
 
                 {data.map((value, index) => {
                     const xPos = index * 1.6; // Slightly wider spacing
+                    const isIndexHighlighted = indexHighlights.includes(index);
+                    const isLoopHighlighted = highlightIndex === index;
+                    const isHighlighted = isIndexHighlighted || isLoopHighlighted;
+
                     if (isDict) {
                         return (
                             <DictionaryElement
@@ -287,7 +291,7 @@ const DraggableStructure = ({ structure, highlightIndex, initialY, overrideValue
                                 position={[xPos, 0, 0]}
                                 k={value.key}
                                 v={value.value}
-                                isHighlighted={highlightIndex === index}
+                                isHighlighted={isHighlighted}
                             />
                         );
                     }
@@ -296,7 +300,7 @@ const DraggableStructure = ({ structure, highlightIndex, initialY, overrideValue
                             key={index}
                             position={[xPos, 0, 0]}
                             value={value}
-                            isHighlighted={highlightIndex === index}
+                            isHighlighted={isHighlighted}
                         />
                     ) : (
                         <ArrayElement
@@ -304,7 +308,7 @@ const DraggableStructure = ({ structure, highlightIndex, initialY, overrideValue
                             position={[xPos, 0, 0]}
                             value={value}
                             index={index}
-                            isHighlighted={highlightIndex === index}
+                            isHighlighted={isHighlighted}
                         />
                     );
                 })}
@@ -324,9 +328,15 @@ const DraggableStructure = ({ structure, highlightIndex, initialY, overrideValue
     );
 };
 
-const Visualizer = ({ visualData }) => {
+const Visualizer = ({ visualData, onIterationChange }) => {
     const [highlightIndex, setHighlightIndex] = useState(-1);
     const [isLooping, setIsLooping] = useState(false);
+
+    // Use a ref for onIterationChange to avoid stale closures in setInterval
+    const onIterationChangeRef = useRef(onIterationChange);
+    useEffect(() => {
+        onIterationChangeRef.current = onIterationChange;
+    }, [onIterationChange]);
 
     // Identify which structure to loop over
     let loopTargetStructure = null;
@@ -340,6 +350,26 @@ const Visualizer = ({ visualData }) => {
 
     // Variable Overrides for Loop Animation
     const [variableOverrides, setVariableOverrides] = useState({});
+
+    // Index Highlighting State
+    const [indexHighlights, setIndexHighlights] = useState({});
+
+    // Process index operations only when Run is pressed (lastRun exists)
+    useEffect(() => {
+        if (visualData?.lastRun && visualData?.indexOperations && visualData.indexOperations.length > 0) {
+            const highlights = {};
+            visualData.indexOperations.forEach(op => {
+                if (!highlights[op.varName]) {
+                    highlights[op.varName] = [];
+                }
+                highlights[op.varName] = [...highlights[op.varName], ...op.indices];
+            });
+            setIndexHighlights(highlights);
+        } else if (!visualData?.lastRun) {
+            // Clear highlights when not running
+            setIndexHighlights({});
+        }
+    }, [visualData?.indexOperations, visualData?.lastRun]);
 
     useEffect(() => {
         let interval;
@@ -358,6 +388,8 @@ const Visualizer = ({ visualData }) => {
                     if (visualData.loopIterator) {
                         const currentVal = loopTargetStructure.data[next];
 
+                        console.log(`Loop iteration ${next}: currentVal = ${currentVal}`);
+
                         setVariableOverrides(prevOverrides => {
                             const newOverrides = { ...prevOverrides };
 
@@ -375,19 +407,32 @@ const Visualizer = ({ visualData }) => {
                                         // Evaluate formula: replace vars with values from scope
                                         try {
                                             // Build Scope: Current Overrides + Base Structure Data
-                                            const scope = {};
-                                            structures.forEach(s => scope[s.name] = s.data); // Base data
+                                            const scope = { _index: next };
+                                            visualData.structures.forEach(s => scope[s.name] = s.data); // Base data
                                             Object.assign(scope, newOverrides); // Apply current animation overrides (e.g. i=10)
+
+                                            // Skip if iterator is undefined
+                                            if (scope[visualData.loopIterator] === undefined) {
+                                                console.warn(`Skipping formula evaluation: ${visualData.loopIterator} is undefined`);
+                                                return;
+                                            }
 
                                             // Create function with scope keys as args
                                             const keys = Object.keys(scope);
                                             const values = Object.values(scope);
+
+                                            // Debug logging
+                                            console.log(`Evaluating formula: ${formula}`);
+                                            console.log('Scope:', scope);
+
                                             // Use a specific 'Math' context if needed or just global JS math
                                             // Python 'i + 3' works in JS. 
                                             // Python 'i ** 2' works in JS (ES7).
                                             // Python 'pow(i, 2)' -> works if we alias Math.pow? For now support operators.
                                             const func = new Function(...keys, `return ${formula}`);
                                             const result = func(...values);
+
+                                            console.log(`Result: ${result}`);
                                             newOverrides[depName] = result;
                                         } catch (e) {
                                             console.warn("Formula eval failed", e);
@@ -403,6 +448,9 @@ const Visualizer = ({ visualData }) => {
                         });
                     }
 
+                    if (onIterationChangeRef.current) {
+                        onIterationChangeRef.current(next);
+                    }
                     return next;
                 });
             }, 800); // 800ms delay between steps
@@ -418,9 +466,15 @@ const Visualizer = ({ visualData }) => {
         setHighlightIndex(-1);
         setVariableOverrides({});
 
-        // If lastRun timestamp exists and is recent (implies user clicked Run), start loop
-        if (visualData?.lastRun) {
-            setHighlightIndex(-1); // Reset for new run
+        // Clear index highlights unless this is a Run trigger
+        if (!visualData?.lastRun) {
+            setIndexHighlights({});
+        }
+
+        // If lastRun timestamp exists and hasLoop is true, start loop animation
+        if (visualData?.lastRun && visualData?.hasLoop) {
+            // Start from -1 so first increment goes to 0
+            setHighlightIndex(-1);
             setIsLooping(true);
         }
     }, [visualData]);
@@ -454,20 +508,34 @@ const Visualizer = ({ visualData }) => {
 
     const { structures, hasLoop } = visualData;
 
+    const startingY = 2;
+    const structureSpacing = 3;
+
     return (
         <div style={{ width: '100%', height: '100%', backgroundColor: '#111', position: 'relative' }}>
             <Canvas orthographic camera={{ zoom: 50, position: [0, 0, 100] }}>
                 <ambientLight intensity={1} />
-                {structures.map((struct, index) => (
-                    <DraggableStructure
-                        key={struct.name + index}
-                        structure={struct}
-                        // Only highlight if this is the target structure being looped
-                        highlightIndex={loopTargetStructure === struct ? highlightIndex : -1}
-                        initialY={-index * 3 + 2} // Stack them vertically
-                        overrideValue={variableOverrides[struct.name]}
-                    />
-                ))}
+                {visualData.structures.map((structure, idx) => {
+                    // Check if we have an override for this structure in the current iteration
+                    let override = undefined;
+                    if (highlightIndex >= 0 && visualData.iterationState && visualData.iterationState[highlightIndex]) {
+                        const state = visualData.iterationState[highlightIndex];
+                        if (state[structure.name] !== undefined) {
+                            override = state[structure.name];
+                        }
+                    }
+
+                    return (
+                        <DraggableStructure
+                            key={`${structure.name}-${idx}`}
+                            structure={structure}
+                            highlightIndex={highlightIndex}
+                            initialY={startingY - (idx * structureSpacing)}
+                            overrideValue={override}
+                            indexHighlights={indexHighlights[structure.name] || []}
+                        />
+                    );
+                })}
             </Canvas>
 
             <div style={{ position: 'absolute', bottom: 10, left: 10, color: '#aaa', fontSize: '0.8rem' }}>

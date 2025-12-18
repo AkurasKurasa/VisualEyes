@@ -39,12 +39,16 @@ export class CommandController {
                 hasLoop: data.hasLoop || false,
                 loopTarget: data.target || null,
                 loopIterator: data.iterator || null,
-                loopDependencies: data.loopDependencies || []
+                loopDependencies: data.loopDependencies || [],
+                indexOperations: data.indexOperations || [],
+                output: data.output || [],
+                iterationOutputs: data.iterationOutputs || {},
+                iterationState: data.iterationState || {}
             };
         } catch (error) {
             console.error("Parsing error:", error);
             // Return empty structure on error to prevent app crash
-            return { structures: [], hasLoop: false, target: null, iterator: null, loopDependencies: [] };
+            return { structures: [], hasLoop: false, target: null, iterator: null, loopDependencies: [], indexOperations: [] };
         }
     }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Editor from '@monaco-editor/react';
 import { FaPlay } from 'react-icons/fa';
 import './App.css';
@@ -10,6 +10,12 @@ import { CommandController } from './utils/CommandController';
 function App() {
   const [editorCode, setEditorCode] = useState('# Define an array to visualize it\narr = [1, 2, 3, 4, 5]\n\n# Print check\nprint("Hello visualizer")\nprint(arr)');
   const [visualData, setVisualData] = useState(null);
+
+  // Ref to hold the latest visualData for callbacks
+  const visualDataRef = useRef(visualData);
+  useEffect(() => {
+    visualDataRef.current = visualData;
+  }, [visualData]);
 
   // Terminal Output
   const [terminalOutput, setTerminalOutput] = useState([]);
@@ -53,10 +59,10 @@ function App() {
   useEffect(() => {
     // USE COMMAND CONTROLLER (Async)
     const fetchData = async () => {
-      const { structures, hasLoop, loopTarget, loopIterator, loopDependencies } = await CommandController.parse(editorCode);
+      const { structures, hasLoop, loopTarget, loopIterator, loopDependencies, indexOperations } = await CommandController.parse(editorCode);
 
       if (structures.length > 0) {
-        setVisualData({ structures, hasLoop, loopTarget, loopIterator, loopDependencies });
+        setVisualData({ structures, hasLoop, loopTarget, loopIterator, loopDependencies, indexOperations });
       } else {
         setVisualData(null);
       }
@@ -65,41 +71,23 @@ function App() {
   }, [editorCode]);
 
   const handleRun = async () => {
-    // 1. Get latest parsed data via Controller
-    const { structures, hasLoop, loopTarget, loopIterator, loopDependencies } = await CommandController.parse(editorCode);
+    // Clear terminal and parse code
+    setTerminalOutput(['Terminal']);
 
-    // 2. Simulated Print Logic
-    const newLogs = [];
-    const printRegex = /print\s*\((.*?)\)/g;
-    let printMatch;
+    // Clear printed iterations tracking for new run
+    printedIterationsRef.current.clear();
 
-    while ((printMatch = printRegex.exec(editorCode)) !== null) {
-      const content = printMatch[1].trim();
+    const visualDataResult = await CommandController.parse(editorCode);
 
-      if ((content.startsWith('"') && content.endsWith('"')) ||
-        (content.startsWith("'") && content.endsWith("'"))) {
-        newLogs.push(content.slice(1, -1));
-      } else {
-        const foundStruct = structures.find(s => s.name === content);
-        if (foundStruct) {
-          if (foundStruct.type === 'set') {
-            newLogs.push(`{${foundStruct.data.join(', ')}}`);
-          } else if (foundStruct.type === 'dictionary') {
-            const dictStr = foundStruct.data.map(e => `'${e.key}': ${e.value}`).join(', ');
-            newLogs.push(`{${dictStr}}`);
-          } else {
-            newLogs.push(`[${foundStruct.data.join(', ')}]`);
-          }
-        } else {
-          newLogs.push(`NameError: name '${content}' is not defined (or not supported)`);
-        }
-      }
+    // Add timestamp to trigger updates even if structure is identical
+    visualDataResult.lastRun = Date.now();
+
+    // Set visual data and append output to terminal
+    setVisualData(visualDataResult);
+
+    if (visualDataResult.output && visualDataResult.output.length > 0) {
+      setTerminalOutput(prev => [...prev, ...visualDataResult.output]);
     }
-    setTerminalOutput(newLogs);
-
-    // 3. Trigger Animation
-    // We update visualData with a 'lastRun' timestamp to signal start
-    setVisualData({ structures, hasLoop, loopTarget, loopIterator, loopDependencies, lastRun: Date.now() });
   };
 
   const handleInputChange = (e) => {
@@ -113,12 +101,35 @@ function App() {
     }
   };
 
+  // Track which iterations have already been printed to prevent duplicates
+  const printedIterationsRef = useRef(new Set());
+
+  const handleIterationChange = useCallback((index) => {
+    // Backend uses string keys for iterationOutputs
+    const key = String(index);
+
+    // Check if we've already printed this iteration
+    if (printedIterationsRef.current.has(key)) {
+      return;
+    }
+
+    if (visualDataRef.current && visualDataRef.current.iterationOutputs && visualDataRef.current.iterationOutputs[key]) {
+      setTerminalOutput(prev => [...prev, ...visualDataRef.current.iterationOutputs[key]]);
+
+      // Mark this iteration as printed
+      printedIterationsRef.current.add(key);
+    }
+  }, []);
+
   return (
     <div className="app-container" style={{ display: 'flex', width: '100vw', height: '100vh', overflow: 'hidden' }}>
 
       {/* LEFT: Visualization Panel */}
       <div style={{ width: `${leftWidth}%`, position: 'relative', overflow: 'hidden' }}>
-        <Visualizer visualData={visualData} />
+        <Visualizer
+          visualData={visualData}
+          onIterationChange={handleIterationChange}
+        />
       </div>
 
       {/* MIDDLE: Resizable Divider */}

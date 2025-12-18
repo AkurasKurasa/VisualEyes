@@ -1,0 +1,69 @@
+﻿python : C:\Users\paula\OneD
+rive\Desktop\D-Essay\server\
+code_parser.py:283: 
+DeprecationWarning: ast.Num 
+is deprecated and will be 
+removed in Python 3.14; use 
+ast.Constant instead
+At line:1 char:1
++ python code_parser.py 
+2>&1 | Out-File -Encoding 
+utf8 test_results.txt
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          
+    : NotSpecified: (C:\Us  
+  ers\paula\...onstant in   
+ stead:String) [], Remot    
+eException
+    + FullyQualifiedErrorId 
+    : NativeCommandError
+ 
+  elif isinstance(node, 
+ast.Num): # Python < 3.8
+C:\Users\paula\OneDrive\Desk
+top\D-Essay\server\code_pars
+er.py:285: 
+DeprecationWarning: ast.Str 
+is deprecated and will be 
+removed in Python 3.14; use 
+ast.Constant instead
+  elif isinstance(node, 
+ast.Str): # Python < 3.8
+============================================================
+CODEPARSER TEST SUITE
+============================================================
+
+============================================================
+Test 1: Simple Conditional
+============================================================
+Structures: [{'name': 'x', 'type': 'variable', 'data': 10}, {'name': 'y', 'type': 'variable', 'data': 5}, {'name': 'result', 'type': 'variable', 'data': 'x is greater'}]
+Expected: x=10, y=5, result='x is greater'
+Traceback (most recent call 
+last):
+  File "C:\Users\paula\OneDr
+ive\Desktop\D-Essay\server\c
+ode_parser.py", line 646, 
+in <module>
+    run_tests()
+    ~~~~~~~~~^^
+  File "C:\Users\paula\OneDr
+ive\Desktop\D-Essay\server\c
+ode_parser.py", line 509, 
+in run_tests
+    print("\u2705 PASSED")
+    ~~~~~^^^^^^^^^^^^^
+  File "C:\Users\paula\AppDa
+ta\Local\Programs\Python\Pyt
+hon313\Lib\encodings\cp1252.
+py", line 19, in encode
+    return codecs.charmap_en
+code(input,self.errors,encod
+ing_table)[0]
+           ~~~~~~~~~~~~~~~~~
+~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^
+UnicodeEncodeError: 
+'charmap' codec can't 
+encode character '\u2705' 
+in position 0: character 
+maps to <undefined>
